@@ -30,16 +30,12 @@ class WorkdayResponse(object):
         """
         :param response: The response from the API
         :type  response: ``dict``
-
         :param service: The web service that was callled
         :type  service: :class:`zeep.proxy.ServiceProxy`
-
         :param method: The name of the web method called
         :type  method: ``str``
-
         :param called_args: The arguments that were used to call the method
         :type  called_args: ``list``
-
         :param called_kwargs: The keyword-arguments that were used to call the method
         :type  called_kwargs: ``dict``
         """
@@ -48,38 +44,45 @@ class WorkdayResponse(object):
         self.called_args = called_args
         self.called_kwargs = called_kwargs
         self._response = response
+        if isinstance(self._response["Response_Results"], list) and len(self._response["Response_Results"]) == 1:
+          self._response["Response_Results"] = self._response['Response_Results'][0]
+        if isinstance(self._response["Response_Filter"], list) and len(self._response["Response_Filter"]) == 1:
+            self._response["Response_Filter"] = self._response['Response_Filter'][0]
+        elif isinstance(self._response["Response_Filter"], list) and self._response["Response_Filter"] == '[]':
+            self._response["Response_Filter"] = ''
 
     def __iter__(self):
         return self
+
 
     def __next__(self):
         """
         Use the iterator protocol as a way of returning paged
         result sets
         """
-        if self.page == self.total_pages:
-            raise StopIteration
-        else:
-            # Add paging params if not already existing
-            if "Response_Filter" not in self.called_kwargs:
-                self.called_kwargs["Response_Filter"] = {"Page": self.page + 1}
-            else:
-                if "Page" in self.called_kwargs["Response_Filter"]:
-                    self.called_kwargs["Response_Filter"]["Page"] += 1
-                else:
-                    self.called_kwargs["Response_Filter"]["Page"] = self.page + 1
 
-            result = getattr(self.service, self.method)(
-                *self.called_args, **self.called_kwargs
-            )
-            self._response = result
-            return WorkdayResponse(
-                result,
-                service=self.service,
-                method=self.method,
-                called_args=self.called_args,
-                called_kwargs=self.called_kwargs,
-            )
+        if "Response_Filter" in self.called_kwargs:
+            if "Page" in self.called_kwargs["Response_Filter"]:
+                if (self.called_kwargs["Response_Filter"]["Page"] == self.total_pages):
+                    raise StopIteration
+                else:
+                    self.called_kwargs["Response_Filter"]["Page"] += 1
+            else:
+                self.called_kwargs["Response_Filter"] = {"Page": 1}
+        else:
+            self.called_kwargs["Response_Filter"] = {"Page": 1}
+
+        result = getattr(self.service, self.method)(
+            *self.called_args, **self.called_kwargs
+        )
+
+        return WorkdayResponse(
+            result,
+            service=self.service,
+            method=self.method,
+            called_args=self.called_args,
+            called_kwargs=self.called_kwargs,
+        )
 
     def next(self):
         return self.__next__()
@@ -90,11 +93,15 @@ class WorkdayResponse(object):
 
     @property
     def filter(self):
-        return self._response.get("Response_Filter", None)
+        if isinstance(self._response["Response_Filter"], list) and len(self._response["Response_Results"]) == 1:
+            self._response["Response_Filter"] = self._response['Response_Filter'][0]
+        elif isinstance(self._response["Response_Filter"], list):
+            self._response["Response_Filter"] = dict()
+        return self._response["Response_Filter"]
 
     @property
     def total_results(self):
-        return int(self._response["Response_Results"]["Total_Results"])
+          return int(self._response["Response_Results"]["Total_Results"])
 
     @property
     def total_pages(self):
@@ -115,19 +122,16 @@ class WorkdayResponse(object):
 
 class BaseSoapApiClient(object):
     def __init__(self, name, session, wsdl_url, authentication, proxy_url=None):
+
         """
         :param name: Name of this API
         :type  name: ``str``
-
         :param session: HTTP session to use for communication
         :type  session: :class:`requests.Session`
-
         :param wsdl_url: Path to the WSDL
         :type  wsdl_url: ``str``
-
         :param authentication: Authentication configuration
         :type  authentication: :class:`workday.auth.BaseAuthentication`
-
         :param proxy_url: (Optional) HTTP Proxy URL
         :type  proxy_url: ``str``
         """
@@ -142,11 +146,12 @@ class BaseSoapApiClient(object):
         """
         Wrapper around the SOAP client service methods.
         Converts responses to a :class:`WorkdayResponse` instance
-
         :rtype: :class:`WorkdayResponse`
         """
 
         def call_soap_method(*args, **kwargs):
+            if attr == 'Get_Workers':
+                kwargs["Response_Group"] = {"Include_Multiple_Managers_in_Management_Chain_Data": 1, "Include_Personal_Information":1, "Include_Reference":1, "Include_Organizations":1, "Include_Management_Chain_Data":1, "Include_Employment_Information":1, "Include_Roles":1}
             try:
                 result = getattr(self._client.service, attr)(*args, **kwargs)
                 return WorkdayResponse(
