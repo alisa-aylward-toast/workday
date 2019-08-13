@@ -44,12 +44,13 @@ class WorkdayResponse(object):
         self.called_args = called_args
         self.called_kwargs = called_kwargs
         self._response = response
-        if isinstance(self._response["Response_Results"], list) and len(self._response["Response_Results"]) == 1:
-          self._response["Response_Results"] = self._response['Response_Results'][0]
-        if isinstance(self._response["Response_Filter"], list) and len(self._response["Response_Filter"]) == 1:
-            self._response["Response_Filter"] = self._response['Response_Filter'][0]
-        elif isinstance(self._response["Response_Filter"], list) and self._response["Response_Filter"] == '[]':
-            self._response["Response_Filter"] = ''
+        if not isinstance(self._response, list):
+            if isinstance(self._response["Response_Results"], list) and len(self._response["Response_Results"]) == 1:
+              self._response["Response_Results"] = self._response['Response_Results'][0]
+            if isinstance(self._response["Response_Filter"], list) and len(self._response["Response_Filter"]) == 1:
+                self._response["Response_Filter"] = self._response['Response_Filter'][0]
+            elif isinstance(self._response["Response_Filter"], list) and self._response["Response_Filter"] == '[]':
+                self._response["Response_Filter"] = ''
 
     def __iter__(self):
         return self
@@ -60,17 +61,17 @@ class WorkdayResponse(object):
         Use the iterator protocol as a way of returning paged
         result sets
         """
-
-        if "Response_Filter" in self.called_kwargs:
-            if "Page" in self.called_kwargs["Response_Filter"]:
-                if (self.called_kwargs["Response_Filter"]["Page"] == self.total_pages):
-                    raise StopIteration
+        if self.method == 'Get_Workers':
+            if "Response_Filter" in self.called_kwargs:
+                if "Page" in self.called_kwargs["Response_Filter"]:
+                    if (self.called_kwargs["Response_Filter"]["Page"] == self.total_pages):
+                        raise StopIteration
+                    else:
+                        self.called_kwargs["Response_Filter"]["Page"] += 1
                 else:
-                    self.called_kwargs["Response_Filter"]["Page"] += 1
+                    self.called_kwargs["Response_Filter"] = {"Page": 1}
             else:
                 self.called_kwargs["Response_Filter"] = {"Page": 1}
-        else:
-            self.called_kwargs["Response_Filter"] = {"Page": 1}
 
         result = getattr(self.service, self.method)(
             *self.called_args, **self.called_kwargs
@@ -118,6 +119,10 @@ class WorkdayResponse(object):
     @property
     def data(self):
         return self._response["Response_Data"]
+
+    @property
+    def custom_data(self):
+        return self._response
 
 
 class BaseSoapApiClient(object):
