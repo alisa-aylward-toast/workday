@@ -61,7 +61,7 @@ class WorkdayResponse(object):
         Use the iterator protocol as a way of returning paged
         result sets
         """
-        if self.method == 'Get_Workers' or self.method == 'Get_Change_Work_Contact_Information':
+        if self.method == 'Get_Workers' or self.method == 'Get_Organization' or self.method == 'Get_Organizations' or self.method == 'Get_Change_Work_Contact_Information':
             if "Response_Filter" in self.called_kwargs:
                 if "Page" in self.called_kwargs["Response_Filter"]:
                     if (self.called_kwargs["Response_Filter"]["Page"] == self.total_pages):
