@@ -103,6 +103,6 @@ class WsSecurityCertificateCredentialAuthentication(BaseAuthentication):
         self._kwargs = {
             "wsse": [
                 UsernameToken(username, password),
-                Signature(private_certificate_path, public_certificate_path, optional_password),
+                Signature(private_key_filename, public_key_filename, optional_password),
             ]
         }
